@@ -1,0 +1,10 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY mock-vendor-server.js ./
+COPY package*.json ./
+
+RUN npm install
+
+CMD ["node", "mock-vendor-server.js"] 

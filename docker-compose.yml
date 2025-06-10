@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: order_aggregator
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: postgres
+      DB_NAME: order_aggregator
+      DB_USER: postgres
+      DB_PASSWORD: password
+      RABBITMQ_URL: amqp://admin:password@rabbitmq:5672
+      VENDOR_A_URL: http://vendor-a:3001
+      VENDOR_B_URL: http://vendor-b:3002
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  worker:
+    build: .
+    command: ["npm", "run", "worker"]
+    environment:
+      DB_HOST: postgres
+      DB_NAME: order_aggregator
+      DB_USER: postgres
+      DB_PASSWORD: password
+      RABBITMQ_URL: amqp://admin:password@rabbitmq:5672
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  vendor-a:
+    build:
+      context: .
+      dockerfile: Dockerfile.vendor
+    environment:
+      PORT: 3001
+      VENDOR_NAME: VendorA
+    ports:
+      - "3001:3001"
+
+  vendor-b:
+    build:
+      context: .
+      dockerfile: Dockerfile.vendor
+    environment:
+      PORT: 3002
+      VENDOR_NAME: VendorB
+    ports:
+      - "3002:3002"
+
+volumes:
+  postgres_data:
