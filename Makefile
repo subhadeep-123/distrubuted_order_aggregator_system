@@ -11,8 +11,7 @@ help:
 	@echo "  clean  - Clean up"
 
 setup:
-	docker-compose build
-	docker-compose up -d
+	docker-compose up --build -d
 	sleep 10
 	docker-compose exec app npm run setup-db
 	docker-compose exec app npm run stock-sync
