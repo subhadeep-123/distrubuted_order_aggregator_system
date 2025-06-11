@@ -4,10 +4,11 @@
   "description": "A distributed order processing platform that acts as a stock aggregator",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "worker": "node src/workers/orderWorker.js",
+    "start": "node scripts/start-with-wait.js",
+    "worker": "node scripts/start-worker-with-wait.js",
     "setup-db": "node src/scripts/setupDatabase.js",
-    "stock-sync": "node src/scripts/stockSync.js"
+    "stock-sync": "node src/scripts/stockSync.js",
+    "wait-for-db": "node scripts/wait-for-db.js"
   },
   "dependencies": {
     "express": "^4.18.2",
