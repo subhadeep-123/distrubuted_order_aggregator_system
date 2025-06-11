@@ -9,15 +9,30 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d order_aggregator"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_ERLANG_COOKIE: "rabbitmq-cookie-string"
     ports:
       - "5672:5672"
       - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   app:
     build: .
@@ -32,8 +47,11 @@ services:
       VENDOR_A_URL: http://vendor-a:3001
       VENDOR_B_URL: http://vendor-b:3002
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
 
   worker:
     build: .
@@ -45,8 +63,11 @@ services:
       DB_PASSWORD: password
       RABBITMQ_URL: amqp://admin:password@rabbitmq:5672
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
 
   vendor-a:
     build:
@@ -70,3 +91,4 @@ services:
 
 volumes:
   postgres_data:
+  rabbitmq_data:
