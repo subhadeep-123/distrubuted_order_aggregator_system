@@ -3,6 +3,24 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 🔔 ${req.method} ${req.path} from ${req.ip}`);
+  if (Object.keys(req.body).length > 0) {
+    console.log(`[${timestamp}] 📝 Request Body:`, req.body);
+  }
+  
+  // Override res.json to log responses
+  const originalJson = res.json;
+  res.json = function(data) {
+    console.log(`[${timestamp}] 📤 Response ${res.statusCode}:`, data);
+    return originalJson.call(this, data);
+  };
+  
+  next();
+});
+
 // Mock stock data
 const STOCK_DATA = {
   'vendor-a': [
@@ -83,5 +101,8 @@ app.get('/info', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`${VENDOR_NAME} running on port ${PORT}`);
+  console.log(`🚀 ${VENDOR_NAME} server started on port ${PORT}`);
+  console.log(`📦 Available products: ${STOCK_DATA[vendorId]?.length || 0}`);
+  console.log(`🔗 Endpoints: /health, /stock, /info, /reduce-stock, /restore-stock`);
+  console.log(`⏰ Server started at: ${new Date().toISOString()}`);
 }); 

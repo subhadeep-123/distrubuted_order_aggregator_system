@@ -8,6 +8,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.path} - Body:`, req.body);
+  
+  // Override res.json to log responses
+  const originalJson = res.json;
+  res.json = function(data) {
+    console.log(`[${timestamp}] Response ${res.statusCode}:`, data);
+    return originalJson.call(this, data);
+  };
+  
+  next();
+});
+
 // Database connection
 const sequelize = new Sequelize(
   process.env.DB_NAME || 'order_aggregator',
@@ -51,33 +66,38 @@ const VENDORS = [
 let channel;
 async function connectQueue() {
   try {
+    console.log('🔗 Connecting to RabbitMQ...');
     const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://admin:password@localhost:5672');
     channel = await connection.createChannel();
     await channel.assertQueue('orders', { durable: true });
-    console.log('Queue connected');
+    console.log('✅ Queue connected successfully');
   } catch (error) {
-    console.error('Queue connection failed:', error);
+    console.error('❌ Queue connection failed:', error);
   }
 }
 
 // Sync stock from vendors
 async function syncStock() {
   try {
+    console.log('📦 Starting stock synchronization...');
     for (const vendorUrl of VENDORS) {
+      console.log(`🔄 Syncing stock from ${vendorUrl}`);
       const response = await axios.get(`${vendorUrl}/stock`);
       const vendorId = vendorUrl.includes('3001') ? 'vendor-a' : 'vendor-b';
       
+      console.log(`📊 Received ${response.data.length} items from ${vendorId}`);
       for (const item of response.data) {
         await Stock.upsert({
           sku: item.sku,
           vendor: vendorId,
           quantity: item.quantity
         });
+        console.log(`   ✓ ${item.sku}: ${item.quantity} units`);
       }
     }
-    console.log('Stock synced from vendors');
+    console.log('✅ Stock synced from all vendors');
   } catch (error) {
-    console.error('Stock sync failed:', error);
+    console.error('❌ Stock sync failed:', error);
   }
 }
 
@@ -90,9 +110,11 @@ app.get('/health', (req, res) => {
 app.post('/order', async (req, res) => {
   try {
     const { productId, quantity, customerId } = req.body;
+    console.log(`🛒 Processing order: Customer ${customerId} wants ${quantity}x ${productId}`);
     
     // Simple validation (as per assignment requirements)
     if (!productId || !quantity || !customerId) {
+      console.log('❌ Validation failed: Missing required fields');
       return res.status(400).json({ error: 'productId, quantity, and customerId required' });
     }
 
@@ -100,8 +122,10 @@ app.post('/order', async (req, res) => {
     const totalStock = await Stock.sum('quantity', {
       where: { sku: productId }
     });
+    console.log(`📊 Available stock for ${productId}: ${totalStock || 0} units`);
     
     if (!totalStock || totalStock < quantity) {
+      console.log(`❌ Insufficient stock: Need ${quantity}, have ${totalStock || 0}`);
       return res.status(400).json({ 
         error: `Insufficient stock for ${productId}` 
       });
@@ -113,6 +137,7 @@ app.post('/order', async (req, res) => {
       items: [{ sku: productId, quantity }],
       status: 'pending'
     });
+    console.log(`✅ Order created with ID: ${order.id}`);
 
     // Send to queue for atomic processing
     if (channel) {
@@ -121,11 +146,14 @@ app.post('/order', async (req, res) => {
         productId,
         quantity
       })), { persistent: true });
+      console.log(`📤 Order ${order.id} sent to processing queue`);
+    } else {
+      console.log('⚠️ Queue not available, order created but not queued for processing');
     }
 
     res.json({ success: true, orderId: order.id });
   } catch (error) {
-    console.error('Order creation failed:', error);
+    console.error('❌ Order creation failed:', error);
     res.status(500).json({ error: 'Order creation failed' });
   }
 });
