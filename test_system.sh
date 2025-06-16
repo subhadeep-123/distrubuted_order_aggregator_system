@@ -5,7 +5,7 @@
 
 set -e  # Exit on any error
 
-API_URL="http://localhost:3000"
+API_URL="http://localhost:8000"
 VENDOR_A_URL="http://localhost:3001"
 VENDOR_B_URL="http://localhost:3002"
 

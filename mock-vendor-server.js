@@ -52,6 +52,7 @@ app.get('/stock', (req, res) => {
 app.post('/reduce-stock', (req, res) => {
   try {
     const { sku, quantity } = req.body;
+    console.log(`${VENDOR_NAME}: Reducing stock for ${sku} by ${quantity}`);
     const stocks = STOCK_DATA[vendorId];
     const item = stocks.find(s => s.sku === sku);
     
