@@ -1,4 +1,5 @@
 const { waitForDatabase } = require('./wait-for-db');
+const { waitForRabbitmq } = require('./wait-for-rabbitmq');
 const { spawn } = require('child_process');
 
 async function startWorker() {
@@ -7,6 +8,9 @@ async function startWorker() {
     
     // Wait for database to be ready
     await waitForDatabase();
+    
+    // Wait for RabbitMQ to be ready
+    await waitForRabbitmq();
     
     // Start the worker
     console.log('Starting worker...');
